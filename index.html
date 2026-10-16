@@ -460,7 +460,7 @@
     <div id="toastContainer" class="fixed top-16 right-4 z-50 flex flex-col gap-1.5 pointer-events-none max-w-xs"></div>
 
     <!-- ========================================================= -->
-    <!-- 5,000-CHIP FREEZEOUT TOURNAMENT ENGINE                    -->
+    <!-- 5,000-CHIP FREEZEOUT TOURNAMENT ENGINE (AUDITED & FIXED)  -->
     <!-- ========================================================= -->
     <script>
         (function () {
@@ -664,7 +664,7 @@
                 return result;
             }
 
-            // 3. PERSISTENT DEVICE ID (Prevents leaving & re-entering the same room to reset 0 chips)
+            // 3. PERSISTENT DEVICE ID
             let deviceUid = localStorage.getItem('velvet_device_uid');
             if (!deviceUid) {
                 deviceUid = 'plr-' + Math.random().toString(36).substring(2, 10) + '-' + Date.now().toString(36).slice(-4);
@@ -782,7 +782,7 @@
                     pot: 0,
                     currentBet: 0,
                     minRaise: bb,
-                    dealerSeat: 0,
+                    dealerSeat: -1, // Starts at -1 so Hand #1 assigns Seat 0 as Dealer
                     sbSeat: -1,
                     bbSeat: -1,
                     turnSeat: -1,
@@ -871,14 +871,12 @@
                     conn._playerUid = uid;
                     appState.clientConns[uid] = conn;
 
-                    // If this player was already in this room, restore their exact seat & chip count!
-                    // If they lost their 5,000 chips in this room, they remain at 0 chips until the room finishes with 1 winner!
                     let seat = room.seats.find(s => s.uid === uid);
                     if (seat) {
                         seat.name = name || seat.name;
                         seat.connected = true;
                         if (seat.chips <= 0 && !room.tournamentFinished) {
-                            room.statusText = `${seat.name} reconnected (Eliminated — Spectating until 1 winner)`;
+                            room.statusText = `${seat.name} reconnected (Eliminated — Waiting for 1 winner)`;
                         } else {
                             room.statusText = `${seat.name} reconnected`;
                         }
@@ -1094,7 +1092,13 @@
                 }
             }
 
-            // 5. FREEZEOUT TEXAS HOLD'EM ENGINE (NO REBUYS — PLAY UNTIL 1 WINNER)
+            // =====================================================
+            // 5. AUDITED TEXAS HOLD'EM ENGINE
+            //    - Proper Dealer/SB/BB & Preflop/Postflop turn order
+            //    - Immediate uncalled bet refund before runout/showdown
+            //    - Accurate side-pot calculation (only contested pots)
+            //    - All-in blind & short-stack edge cases handled
+            // =====================================================
             function findNextSeatIdx(seats, fromIdx, predicate) {
                 const n = seats.length;
                 if (n === 0) return -1;
@@ -1103,6 +1107,33 @@
                     if (predicate(seats[idx])) return idx;
                 }
                 return -1;
+            }
+
+            /**
+             * Refunds any uncalled excess bet to the highest bettor immediately
+             * when a betting round ends. In Texas Hold'em, if Player A bets 5,100
+             * and Player B calls All-In for 4,900, the 200 excess is uncalled and
+             * returned to Player A's stack immediately—it is NEVER part of a side pot
+             * and Player A is NEVER announced as "winning 200" at Showdown!
+             */
+            function refundUncalledBets(room) {
+                const activeContributors = room.seats.filter(s => (s.totalHandBet || 0) > 0);
+                if (activeContributors.length === 0) return;
+
+                // Sort all players by totalHandBet descending
+                const sortedByBet = [...room.seats].sort((a, b) => (b.totalHandBet || 0) - (a.totalHandBet || 0));
+                const topBettor = sortedByBet[0];
+                const secondMaxBet = sortedByBet.length > 1 ? (sortedByBet[1].totalHandBet || 0) : 0;
+                const topBet = topBettor.totalHandBet || 0;
+
+                if (topBet > secondMaxBet && !topBettor.folded) {
+                    const uncalled = topBet - secondMaxBet;
+                    topBettor.chips += uncalled;
+                    topBettor.totalHandBet -= uncalled;
+                    topBettor.bet = Math.max(0, (topBettor.bet || 0) - uncalled);
+                    room.pot = Math.max(0, (room.pot || 0) - uncalled);
+                    if (topBettor.chips > 0) topBettor.allIn = false;
+                }
             }
 
             function checkIfTournamentFinished(room) {
@@ -1119,7 +1150,6 @@
                 }
             }
 
-            // Only callable AFTER the room finishes with 1 winner!
             function hostResetTournament() {
                 const room = appState.hostFullState;
                 if (!room || !room.tournamentFinished) return;
@@ -1137,6 +1167,7 @@
                     s.lastAction = '5,000 Reset';
                 });
                 room.handNumber = 0;
+                room.dealerSeat = -1;
                 room.tournamentFinished = false;
                 room.championName = '';
                 room.stage = 'WAITING';
@@ -1152,7 +1183,6 @@
                 const room = appState.hostFullState;
                 if (!room) return;
 
-                // Strictly NO auto-rebuy for bots or humans during an active tournament!
                 room.seats.forEach((s, idx) => {
                     s.seatIndex = idx;
                 });
@@ -1173,6 +1203,8 @@
 
                 const deck = createShuffledDeck();
                 room.handNumber = (room.handNumber || 0) + 1;
+
+                // Rotate dealer button to the next player with chips
                 const dealerSeat = findNextSeatIdx(room.seats, room.dealerSeat ?? -1, s => s.chips > 0);
 
                 room.seats.forEach(s => {
@@ -1197,15 +1229,18 @@
                     }
                 });
 
-                let sbSeat = -1, bbSeat = -1, firstActionSeat = -1;
+                // Assign Small Blind and Big Blind seats
+                let sbSeat = -1, bbSeat = -1, preflopStartAfterSeat = -1;
                 if (eligible.length === 2) {
+                    // Heads-Up rules: Dealer posts Small Blind and acts FIRST preflop; other player posts Big Blind and acts FIRST postflop
                     sbSeat = dealerSeat;
                     bbSeat = findNextSeatIdx(room.seats, dealerSeat, s => !s.folded);
-                    firstActionSeat = sbSeat;
+                    preflopStartAfterSeat = bbSeat; // Searching after bbSeat lands on sbSeat first!
                 } else {
+                    // 3+ Players rules: left of Dealer is SB, left of SB is BB, left of BB (UTG) acts FIRST preflop
                     sbSeat = findNextSeatIdx(room.seats, dealerSeat, s => !s.folded);
                     bbSeat = findNextSeatIdx(room.seats, sbSeat, s => !s.folded);
-                    firstActionSeat = findNextSeatIdx(room.seats, bbSeat, s => !s.folded);
+                    preflopStartAfterSeat = bbSeat;
                 }
 
                 const sbPlayer = room.seats[sbSeat];
@@ -1215,21 +1250,26 @@
                 sbPlayer.chips -= sbAmt;
                 sbPlayer.bet = sbAmt;
                 sbPlayer.totalHandBet = sbAmt;
-                sbPlayer.lastAction = `SB ${sbAmt}`;
-                if (sbPlayer.chips === 0) sbPlayer.allIn = true;
+                sbPlayer.lastAction = sbPlayer.chips === 0 ? `All-In ${sbAmt}` : `SB ${sbAmt}`;
+                if (sbPlayer.chips === 0) {
+                    sbPlayer.allIn = true;
+                    sbPlayer.acted = true;
+                }
 
                 const bbAmt = Math.min(room.bigBlind, bbPlayer.chips);
                 bbPlayer.chips -= bbAmt;
                 bbPlayer.bet = bbAmt;
                 bbPlayer.totalHandBet = bbAmt;
-                bbPlayer.lastAction = `BB ${bbAmt}`;
-                if (bbPlayer.chips === 0) bbPlayer.allIn = true;
+                bbPlayer.lastAction = bbPlayer.chips === 0 ? `All-In ${bbAmt}` : `BB ${bbAmt}`;
+                if (bbPlayer.chips === 0) {
+                    bbPlayer.allIn = true;
+                    bbPlayer.acted = true;
+                }
 
                 room.stage = 'PREFLOP';
                 room.dealerSeat = dealerSeat;
                 room.sbSeat = sbSeat;
                 room.bbSeat = bbSeat;
-                room.turnSeat = firstActionSeat;
                 room.pot = sbAmt + bbAmt;
                 room.currentBet = Math.max(sbAmt, bbAmt);
                 room.minRaise = room.bigBlind;
@@ -1238,10 +1278,38 @@
                 room.winnerBannerText = '';
                 room.winningCardIds = [];
                 room.winnerSeats = [];
+
+                // Find first non-folded, non-all-in player to act preflop
+                const firstActionSeat = findNextSeatIdx(room.seats, preflopStartAfterSeat, s => !s.folded && !s.allIn);
+                const canStillAct = room.seats.filter(s => !s.folded && !s.allIn);
+                const allMatched = room.seats.filter(s => !s.folded).every(s => s.allIn || (s.acted && s.bet === room.currentBet));
+
+                // Edge case: if a player went all-in on the blind and no further action is needed, run out the board!
+                if (firstActionSeat === -1 || (canStillAct.length <= 1 && allMatched) || (canStillAct.length === 1 && canStillAct[0].bet >= room.currentBet)) {
+                    advanceStreetOrShowdown(room);
+                    return;
+                }
+
+                room.turnSeat = firstActionSeat;
                 room.statusText = `${room.seats[firstActionSeat].name}'s turn`;
 
                 sfx.card();
                 broadcastStateFromHost(true);
+            }
+
+            /**
+             * Maximum effective bet a player can make on the current street:
+             * A player never needs to bet more than the largest total stack (bet + chips)
+             * among all other non-folded opponents in the hand.
+             */
+            function getMaxEffectiveBetForPlayer(room, seatIdx) {
+                const player = room.seats[seatIdx];
+                if (!player) return 0;
+                const myMaxTotal = player.bet + player.chips;
+                const otherContenders = room.seats.filter(s => s.seatIndex !== seatIdx && !s.folded);
+                if (otherContenders.length === 0) return myMaxTotal;
+                const maxOpponentTotal = Math.max(...otherContenders.map(s => (s.bet || 0) + (s.chips || 0)));
+                return Math.min(myMaxTotal, Math.max(room.currentBet, maxOpponentTotal));
             }
 
             function processHostPlayerAction(seatIdx, actionType, targetBetAmount = 0) {
@@ -1277,11 +1345,13 @@
                     }
                     sfx.chip();
                 } else if (actionType === 'RAISE') {
-                    const maxPossible = player.bet + player.chips;
-                    let finalBet = Math.min(Math.max(Number(targetBetAmount) || 0, room.currentBet + room.minRaise), maxPossible);
-                    if (maxPossible <= room.currentBet + room.minRaise) finalBet = maxPossible;
+                    // Cap raise to effective maximum opponent stack so no uncallable overbet is created
+                    const maxPossible = getMaxEffectiveBetForPlayer(room, seatIdx);
+                    const minLegalRaiseTo = room.currentBet + room.minRaise;
+                    let finalBet = Math.min(Math.max(Number(targetBetAmount) || 0, minLegalRaiseTo), maxPossible);
+                    if (maxPossible <= minLegalRaiseTo) finalBet = maxPossible;
 
-                    const added = finalBet - player.bet;
+                    const added = Math.max(0, finalBet - player.bet);
                     const raiseDiff = finalBet - room.currentBet;
 
                     player.chips -= added;
@@ -1294,7 +1364,9 @@
                         if (raiseDiff >= room.minRaise) room.minRaise = raiseDiff;
                         room.currentBet = finalBet;
                         room.seats.forEach(s => {
-                            if (s.seatIndex !== seatIdx && !s.folded && !s.allIn) s.acted = false;
+                            if (s.seatIndex !== seatIdx && !s.folded && !s.allIn) {
+                                s.acted = false;
+                            }
                         });
                     }
 
@@ -1302,17 +1374,19 @@
                         player.allIn = true;
                         player.lastAction = `All-In ${finalBet}`;
                     } else {
-                        player.lastAction = `Raise ${finalBet}`;
+                        player.lastAction = room.currentBet === added ? `Bet ${finalBet}` : `Raise ${finalBet}`;
                     }
                     sfx.chip();
                 }
 
+                // Check if everyone else folded
                 const nonFolded = room.seats.filter(s => !s.folded);
                 if (nonFolded.length === 1) {
+                    refundUncalledBets(room);
                     const winner = nonFolded[0];
                     const wonPot = room.pot;
                     winner.chips += wonPot;
-                    winner.lastAction = `+${wonPot}`;
+                    winner.lastAction = `+${wonPot.toLocaleString()}`;
                     room.winnerBannerText = `${winner.name} wins ${wonPot.toLocaleString()} chips`;
                     room.statusText = room.winnerBannerText;
                     room.pot = 0;
@@ -1326,14 +1400,15 @@
                     return;
                 }
 
+                // Check if betting round is complete
                 const canStillAct = nonFolded.filter(s => !s.allIn);
                 const allMatched = nonFolded.every(s => s.allIn || (s.acted && s.bet === room.currentBet));
 
                 if (allMatched) {
                     advanceStreetOrShowdown(room);
                 } else {
-                    const nextSeat = findNextSeatIdx(room.seats, seatIdx, s => !s.folded && !s.allIn);
-                    if (nextSeat === -1 || (canStillAct.length <= 1 && allMatched)) {
+                    const nextSeat = findNextSeatIdx(room.seats, seatIdx, s => !s.folded && !s.allIn && (!s.acted || s.bet < room.currentBet));
+                    if (nextSeat === -1) {
                         advanceStreetOrShowdown(room);
                     } else {
                         room.turnSeat = nextSeat;
@@ -1344,6 +1419,9 @@
             }
 
             function advanceStreetOrShowdown(room) {
+                // Immediately refund any uncalled excess bet before dealing next street or showdown!
+                refundUncalledBets(room);
+
                 room.seats.forEach(s => {
                     s.bet = 0;
                     if (!s.folded && !s.allIn) {
@@ -1357,6 +1435,7 @@
                 const nonFolded = room.seats.filter(s => !s.folded);
                 const ableToBet = nonFolded.filter(s => !s.allIn);
 
+                // If we finished River OR fewer than 2 players can still make bets, run out remaining board to Showdown
                 if (room.stage === 'RIVER' || ableToBet.length < 2) {
                     while (room.communityCards.length < 5 && room.deck.length > 0) {
                         room.communityCards.push(room.deck.pop());
@@ -1377,7 +1456,17 @@
                     room.stage = 'RIVER';
                 }
 
+                // Postflop action always starts with first active player to the left of the Dealer button
                 const firstPostFlop = findNextSeatIdx(room.seats, room.dealerSeat, s => !s.folded && !s.allIn);
+                if (firstPostFlop === -1) {
+                    while (room.communityCards.length < 5 && room.deck.length > 0) {
+                        room.communityCards.push(room.deck.pop());
+                    }
+                    resolveHostShowdown(room);
+                    broadcastStateFromHost(true);
+                    return;
+                }
+
                 room.turnSeat = firstPostFlop;
                 room.statusText = `${room.seats[firstPostFlop]?.name || ''}'s turn`;
                 sfx.card();
@@ -1385,6 +1474,9 @@
             }
 
             function resolveHostShowdown(room) {
+                // Ensure any uncalled overbet is refunded before dividing contested pots
+                refundUncalledBets(room);
+
                 room.stage = 'SHOWDOWN';
                 room.turnSeat = -1;
 
@@ -1401,15 +1493,17 @@
                 let prevCap = 0;
                 const winnings = {};
                 const winnerSeatsSet = new Set();
-                let winningCardIds = [];
+                const winningCardIdsSet = new Set();
 
                 for (const cap of distinctCaps) {
                     const diff = cap - prevCap;
                     if (diff <= 0) continue;
+
                     let slicePot = 0;
                     for (const p of allContributors) {
                         slicePot += Math.max(0, Math.min((p.totalHandBet || 0) - prevCap, diff));
                     }
+
                     const eligible = contenders.filter(c => (c.totalHandBet || 0) >= cap);
                     if (eligible.length > 0 && slicePot > 0) {
                         let bestScore = -1;
@@ -1424,17 +1518,11 @@
                             rem = Math.max(0, rem - 1);
                             winnings[w.seatIndex] = (winnings[w.seatIndex] || 0) + share + extra;
                             winnerSeatsSet.add(w.seatIndex);
-                            if (winningCardIds.length === 0) winningCardIds = evals[w.seatIndex].patternCardIds;
+                            (evals[w.seatIndex].patternCardIds || []).forEach(id => winningCardIdsSet.add(id));
                         });
                     }
                     prevCap = cap;
                 }
-
-                const maxCap = distinctCaps[distinctCaps.length - 1] || 0;
-                allContributors.forEach(p => {
-                    const uncalled = (p.totalHandBet || 0) - maxCap;
-                    if (uncalled > 0) p.chips += uncalled;
-                });
 
                 const summaries = [];
                 contenders.forEach(c => {
@@ -1451,7 +1539,7 @@
 
                 room.pot = 0;
                 room.winnerSeats = [...winnerSeatsSet];
-                room.winningCardIds = winningCardIds;
+                room.winningCardIds = [...winningCardIdsSet];
                 room.winnerBannerText = summaries.join(' • ') || 'Showdown complete';
                 room.statusText = room.winnerBannerText;
                 checkIfTournamentFinished(room);
@@ -1470,10 +1558,11 @@
                 appState.botTimer = setTimeout(() => {
                     const toCall = room.currentBet - activeSeat.bet;
                     const ev = evaluateBestHand([...(activeSeat.cards || []), ...(room.communityCards || [])]);
+                    const maxEff = getMaxEffectiveBetForPlayer(room, activeSeat.seatIndex);
 
                     if (toCall <= 0) {
                         if (ev.category >= 2 || (ev.category === 1 && Math.random() < 0.45)) {
-                            const betAmt = Math.min(activeSeat.chips + activeSeat.bet, Math.max(room.bigBlind * 2, Math.floor(room.pot * 0.6)));
+                            const betAmt = Math.min(maxEff, Math.max(room.bigBlind * 2, Math.floor(room.pot * 0.6)));
                             if (betAmt > room.currentBet && activeSeat.chips > 0) {
                                 processHostPlayerAction(activeSeat.seatIndex, 'RAISE', betAmt);
                                 return;
@@ -1481,8 +1570,8 @@
                         }
                         processHostPlayerAction(activeSeat.seatIndex, 'CHECK');
                     } else {
-                        if (ev.category >= 3 && Math.random() < 0.5 && activeSeat.chips > toCall + room.minRaise) {
-                            const raiseTo = room.currentBet + Math.max(room.minRaise, Math.floor(room.pot * 0.5));
+                        if (ev.category >= 3 && Math.random() < 0.5 && maxEff > room.currentBet + room.minRaise) {
+                            const raiseTo = Math.min(maxEff, room.currentBet + Math.max(room.minRaise, Math.floor(room.pot * 0.5)));
                             processHostPlayerAction(activeSeat.seatIndex, 'RAISE', raiseTo);
                         } else if (ev.category >= 1 || toCall <= room.bigBlind * 2 || Math.random() < 0.38) {
                             processHostPlayerAction(activeSeat.seatIndex, 'CALL');
@@ -1687,7 +1776,7 @@
 
                 document.getElementById('tableStatusBanner').textContent = room.statusText || '';
 
-                // Host +Bot Button (Only before tournament starts or after 1 winner is crowned)
+                // Host +Bot Button
                 const addBotBtn = document.getElementById('addBotBtn');
                 const showBotBtn = isHost && isBetweenHands && (room.handNumber === 0 || room.tournamentFinished);
                 addBotBtn.classList.toggle('hidden', !showBotBtn);
@@ -1758,8 +1847,8 @@
                         if (opp.cards && opp.cards.length === 2 && !opp.cards[0]?.hidden) {
                             const c0 = opp.cards[0];
                             const c1 = opp.cards[1];
-                            const hl0 = activePatternIds.has(c0.id) ? 'gold' : '';
-                            const hl1 = activePatternIds.has(c1.id) ? 'gold' : '';
+                            const hl0 = isOppWinner && activePatternIds.has(c0.id) ? 'gold' : '';
+                            const hl1 = isOppWinner && activePatternIds.has(c1.id) ? 'gold' : '';
                             showdownCardsHTML = `
                                 <div class="flex items-center justify-center gap-1 mt-1.5 pt-1.5 border-t border-sky-100 dark:border-slate-800 w-full">
                                     ${renderCardFaceHTML(c0, hl0, cardSize)}
@@ -1826,6 +1915,9 @@
                 const betPill = document.getElementById('myCurrentBetPill');
                 const betVal = document.getElementById('myCurrentBetVal');
                 const bettingPanel = document.getElementById('bettingControlsPanel');
+                const checkCallLabel = document.getElementById('btnCheckCallLabel');
+                const raiseBtn = document.getElementById('btnOpenRaiseClock');
+                const raiseLbl = document.getElementById('btnRaiseMainLabel');
 
                 if (!mySeat) return;
 
@@ -1861,12 +1953,17 @@
                     }
 
                     const toCall = Math.max(0, room.currentBet - mySeat.bet);
-                    const checkCallLabel = document.getElementById('btnCheckCallLabel');
                     if (toCall === 0) checkCallLabel.textContent = 'Check';
                     else if (toCall >= mySeat.chips) checkCallLabel.textContent = `All-In (${mySeat.chips})`;
                     else checkCallLabel.textContent = `Call ${toCall}`;
 
-                    const maxBetTotal = mySeat.bet + mySeat.chips;
+                    // Cap raise dial to the maximum effective stack among active opponents
+                    const otherActive = room.seats.filter(s => s.seatIndex !== mySeat.seatIndex && !s.folded);
+                    const maxOpponentTotal = otherActive.length > 0
+                        ? Math.max(...otherActive.map(s => (s.bet || 0) + (s.chips || 0)))
+                        : (mySeat.bet + mySeat.chips);
+
+                    const maxBetTotal = Math.min(mySeat.bet + mySeat.chips, Math.max(room.currentBet, maxOpponentTotal));
                     const minBetTotal = Math.min(maxBetTotal, Math.max(room.bigBlind, room.currentBet + room.minRaise));
                     appState.clockMinRaise = minBetTotal;
                     appState.clockMaxRaise = maxBetTotal;
@@ -1874,9 +1971,7 @@
                         appState.clockRaiseAmount = minBetTotal;
                     }
 
-                    const raiseBtn = document.getElementById('btnOpenRaiseClock');
-                    const raiseLbl = document.getElementById('btnRaiseMainLabel');
-                    if (mySeat.chips <= toCall) {
+                    if (mySeat.chips <= toCall || maxBetTotal <= room.currentBet) {
                         raiseBtn.disabled = true;
                         raiseBtn.classList.add('opacity-40');
                         raiseLbl.textContent = 'Maxed';
@@ -1887,6 +1982,10 @@
                     }
                 } else {
                     bettingPanel.classList.add('opacity-40', 'pointer-events-none');
+                    checkCallLabel.textContent = 'Check';
+                    raiseBtn.disabled = false;
+                    raiseBtn.classList.remove('opacity-40');
+                    raiseLbl.textContent = 'Raise';
                 }
             }
 
@@ -1997,7 +2096,7 @@
                     val >= maxR ? `All-In ${val.toLocaleString()}` : `Raise to ${val.toLocaleString()}`;
 
                 const pctEl = document.getElementById('clockPercentText');
-                if (val >= maxR) pctEl.textContent = 'All-In';
+                if (val >= maxR) pctEl.textContent = 'Max Effective';
                 else if (val <= minR) pctEl.textContent = 'Min';
                 else pctEl.textContent = `${Math.round(ratio * 100)}%`;
             }
@@ -2202,7 +2301,12 @@
                     const mySeat = room.seats.find(s => s.uid === appState.myUid);
                     if (!mySeat) return;
 
-                    const maxBetTotal = mySeat.bet + mySeat.chips;
+                    const otherActive = room.seats.filter(s => s.seatIndex !== mySeat.seatIndex && !s.folded);
+                    const maxOpponentTotal = otherActive.length > 0
+                        ? Math.max(...otherActive.map(s => (s.bet || 0) + (s.chips || 0)))
+                        : (mySeat.bet + mySeat.chips);
+
+                    const maxBetTotal = Math.min(mySeat.bet + mySeat.chips, Math.max(room.currentBet, maxOpponentTotal));
                     const minBetTotal = Math.min(maxBetTotal, Math.max(room.bigBlind, room.currentBet + room.minRaise));
                     appState.clockMinRaise = minBetTotal;
                     appState.clockMaxRaise = maxBetTotal;
