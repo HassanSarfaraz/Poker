@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>VELVET HOLD'EM — Sky P2P Poker</title>
+    <title>VELVET HOLD'EM — 5K Freezeout P2P Poker</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- PeerJS WebRTC P2P Library -->
@@ -28,7 +28,7 @@
             }
         };
 
-        // Immediately sync with device Dark Mode before first paint to prevent flash
+        // Sync automatically with device Dark Mode on/off
         (function () {
             const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
             const applyDeviceTheme = (isDark) => {
@@ -131,7 +131,7 @@
             background-size: 8px 8px;
         }
 
-        /* Folded Profile Dulling */
+        /* Folded / Eliminated Profile Dulling */
         .folded-profile {
             opacity: 0.38 !important;
             filter: grayscale(90%) !important;
@@ -207,18 +207,11 @@
             </button>
         </div>
 
-        <!-- Right: Theme Sync Indicator + Lobby DB Button OR Minimal In-Game Icons -->
+        <!-- Right: Theme Toggle + Minimal In-Game Icons -->
         <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
-            <!-- Theme Toggle (Auto-Synced with Device Dark Mode by default) -->
-            <button onclick="window.pokerApp.toggleThemeMode()" class="w-9 h-9 rounded-full bg-white/95 dark:bg-slate-900/95 hover:bg-white dark:hover:bg-slate-800 border border-sky-200 dark:border-sky-500/30 flex items-center justify-center text-sky-600 dark:text-sky-400 shadow-sm transition" title="Synced with Device Dark Mode (Tap to override)">
+            <!-- Theme Toggle (Synced with Device Dark Mode by default) -->
+            <button onclick="window.pokerApp.toggleThemeMode()" class="w-9 h-9 rounded-full bg-white/95 dark:bg-slate-900/95 hover:bg-white dark:hover:bg-slate-800 border border-sky-200 dark:border-sky-500/30 flex items-center justify-center text-sky-600 dark:text-sky-400 shadow-sm transition" title="Synced with Device Dark Mode">
                 <i id="themeModeIcon" class="fa-solid fa-moon text-xs sm:text-sm"></i>
-            </button>
-
-            <!-- Lobby-only Account/DB Button -->
-            <button id="headerAccountBtn" onclick="window.pokerApp.openCloudSyncModal()" class="flex items-center gap-2 px-3.5 py-2 rounded-full bg-white/95 dark:bg-slate-900/95 hover:bg-white dark:hover:bg-slate-800 border border-sky-200 dark:border-sky-500/30 shadow-sm text-xs sm:text-sm font-bold text-sky-800 dark:text-sky-200 transition">
-                <i class="fa-solid fa-user-check text-sky-500 text-xs"></i>
-                <span id="headerAccountName" class="max-w-[110px] truncate">Guest</span>
-                <span id="cloudSyncDot" class="w-2 h-2 rounded-full bg-sky-500"></span>
             </button>
 
             <!-- In-Game Minimal Controls -->
@@ -228,7 +221,7 @@
                     <span id="dealHandBtnText">Deal Hand</span>
                 </button>
 
-                <button id="addBotBtn" onclick="window.pokerApp.addBot()" class="hidden items-center gap-1 px-3 py-1.5 rounded-full bg-white/95 dark:bg-slate-900/95 hover:bg-white dark:hover:bg-slate-800 border border-sky-200 dark:border-sky-500/30 text-xs sm:text-sm font-bold text-sky-800 dark:text-sky-200 shadow-sm transition" title="Add AI Bot">
+                <button id="addBotBtn" onclick="window.pokerApp.addBot()" class="hidden items-center gap-1 px-3 py-1.5 rounded-full bg-white/95 dark:bg-slate-900/95 hover:bg-white dark:hover:bg-slate-800 border border-sky-200 dark:border-sky-500/30 text-xs sm:text-sm font-bold text-sky-800 dark:text-sky-200 shadow-sm transition" title="Add AI Bot (5,000 Chips)">
                     <i class="fa-solid fa-robot text-sky-500 text-xs"></i>
                     <span>+Bot</span>
                 </button>
@@ -250,108 +243,69 @@
     <main class="flex-1 w-full max-w-4xl mx-auto flex flex-col justify-between overflow-hidden px-2.5 sm:px-6 pb-3 sm:pb-5 pt-1 relative">
 
         <!-- ===================================================== -->
-        <!-- 1. PRE-GAME LOBBY (CLEAN — NO 1-TAP PRACTICE BUTTON)  -->
+        <!-- 1. SIMPLE PRE-GAME LOBBY (5,000 CHIPS FREEZEOUT)      -->
         <!-- ===================================================== -->
-        <section id="setupScreen" class="w-full max-w-xl mx-auto my-auto z-20 overflow-y-auto max-h-full py-1 no-scrollbar">
-            <div class="bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-sky-200 dark:border-sky-500/25 rounded-3xl p-5 sm:p-7 shadow-xl shadow-sky-900/5 dark:shadow-black/50 space-y-4 transition-colors">
+        <section id="setupScreen" class="w-full max-w-md mx-auto my-auto z-20 overflow-y-auto max-h-full py-1 no-scrollbar">
+            <div class="bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-sky-200 dark:border-sky-500/25 rounded-3xl p-6 sm:p-7 shadow-xl shadow-sky-900/5 dark:shadow-black/50 space-y-5 transition-colors">
 
-                <div class="flex items-center justify-between">
-                    <div>
-                        <h2 class="text-lg sm:text-xl font-extrabold text-sky-950 dark:text-white tracking-tight">Multiplayer Room &amp; Wallet</h2>
-                        <p class="text-xs text-slate-500 dark:text-slate-400">Log in to save your chips or join friends with a room code.</p>
+                <!-- Header & Fixed 5,000 Stack Rule -->
+                <div class="space-y-1.5">
+                    <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-sky-100 dark:bg-sky-950 text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-500/30 text-xs font-extrabold">
+                        <svg class="w-4 h-4 text-sky-500"><use href="#chip-icon"/></svg>
+                        <span>5,000 Starting Chips • Last Player Standing</span>
                     </div>
-                    <span id="accountStatusBadge" class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-sky-50 dark:bg-sky-950/80 text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-500/30">
-                        Local DB Active
-                    </span>
+                    <h2 class="text-xl sm:text-2xl font-black text-sky-950 dark:text-white tracking-tight">Enter Poker Room</h2>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                        Everyone starts with 5,000 chips. No rebuys—play until 1 winner takes the room, or start a new room code anytime.
+                    </p>
                 </div>
 
-                <!-- PLAYER LOGIN & PERSISTENT CHIP WALLET -->
-                <div class="p-4 rounded-2xl bg-sky-50/70 dark:bg-slate-950/70 border border-sky-200 dark:border-sky-500/20 space-y-3">
-                    <div class="grid grid-cols-12 gap-2.5">
-                        <div class="col-span-5">
-                            <label class="block text-[10px] font-bold uppercase text-sky-800 dark:text-sky-300 mb-1">Username</label>
+                <!-- Player Name & Room Code -->
+                <div class="space-y-3.5">
+                    <div>
+                        <label class="block text-xs font-extrabold uppercase tracking-wider text-sky-800 dark:text-sky-300 mb-1.5">Your Name</label>
+                        <div class="relative">
                             <input type="text" id="setupPlayerName" required maxlength="14" placeholder="Maverick"
-                                class="w-full px-3 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-sky-200 dark:border-sky-500/30 text-sky-950 dark:text-white text-xs sm:text-sm font-bold focus:outline-none focus:border-sky-500">
-                        </div>
-                        <div class="col-span-4">
-                            <label class="block text-[10px] font-bold uppercase text-sky-800 dark:text-sky-300 mb-1">PIN</label>
-                            <input type="password" id="setupPlayerPin" maxlength="8" placeholder="1234"
-                                class="w-full px-3 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-sky-200 dark:border-sky-500/30 text-sky-950 dark:text-white font-mono text-xs sm:text-sm font-bold focus:outline-none focus:border-sky-500">
-                        </div>
-                        <div class="col-span-3 flex items-end">
-                            <button type="button" onclick="window.pokerApp.loginOrCreateAccount()"
-                                class="w-full py-2.5 px-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-xs sm:text-sm shadow-sm transition">
-                                Login
+                                class="w-full px-4 py-3 rounded-2xl bg-sky-50/70 dark:bg-slate-950 border border-sky-200 dark:border-sky-500/30 text-sky-950 dark:text-white text-sm sm:text-base font-bold focus:outline-none focus:border-sky-500 pr-10">
+                            <button type="button" onclick="window.pokerApp.randomizeName()" class="absolute right-3 top-1/2 -translate-y-1/2 text-sky-500 hover:text-sky-600 transition" title="Random Name">
+                                <i class="fa-solid fa-dice text-base"></i>
                             </button>
                         </div>
                     </div>
 
-                    <div class="flex items-center justify-between pt-2 border-t border-sky-200/60 dark:border-sky-500/20 text-xs sm:text-sm">
-                        <div class="flex items-center gap-1.5">
-                            <span class="text-slate-500 dark:text-slate-400 font-medium">Wallet:</span>
-                            <span class="inline-flex items-center gap-1 font-mono font-extrabold text-sky-700 dark:text-sky-300 text-sm sm:text-base">
-                                <svg class="w-4 h-4 text-sky-500"><use href="#chip-icon"/></svg>
-                                <span id="walletBalanceText">5,000</span>
-                            </span>
-                            <span id="careerStatsText" class="text-[11px] text-slate-400 ml-1">(0W / 0H)</span>
-                        </div>
-                        <button type="button" onclick="window.pokerApp.claimLobbyFreeChips()"
-                            class="px-3 py-1 rounded-lg bg-white dark:bg-slate-900 hover:bg-sky-100 dark:hover:bg-slate-800 text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-500/30 font-bold text-xs transition">
-                            + Free Refill
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Room Code & Table Buy-In -->
-                <div class="grid grid-cols-2 gap-3">
                     <div>
-                        <label class="block text-[10px] font-bold uppercase tracking-wider text-sky-800 dark:text-sky-300 mb-1">Room Code</label>
+                        <label class="block text-xs font-extrabold uppercase tracking-wider text-sky-800 dark:text-sky-300 mb-1.5">Room Code (4–6 Chars)</label>
                         <div class="relative">
                             <input type="text" id="setupRoomCode" required minlength="4" maxlength="6" placeholder="POKER1"
                                 oninput="this.value = this.value.toUpperCase().replace(/[^A-Z0-9]/g, '')"
-                                class="w-full px-3 py-2.5 rounded-xl bg-sky-50/60 dark:bg-slate-950 border border-sky-200 dark:border-sky-500/30 text-sky-800 dark:text-sky-300 font-mono font-extrabold text-sm sm:text-base uppercase tracking-widest focus:outline-none focus:border-sky-500 pr-14">
-                            <button type="button" onclick="window.pokerApp.generateRoomCode()" class="absolute right-1.5 top-1/2 -translate-y-1/2 px-2 py-1 rounded-lg bg-white dark:bg-slate-800 border border-sky-200 dark:border-sky-500/30 text-[10px] font-bold text-sky-700 dark:text-sky-300">
-                                New
+                                class="w-full px-4 py-3 rounded-2xl bg-sky-50/70 dark:bg-slate-950 border border-sky-200 dark:border-sky-500/30 text-sky-800 dark:text-sky-300 font-mono font-black text-base sm:text-lg uppercase tracking-widest focus:outline-none focus:border-sky-500 pr-20">
+                            <button type="button" onclick="window.pokerApp.generateRoomCode()" class="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 border border-sky-200 dark:border-sky-500/30 text-xs font-bold text-sky-700 dark:text-sky-300 shadow-sm">
+                                New Code
                             </button>
                         </div>
                     </div>
-
-                    <div>
-                        <div class="flex items-center justify-between mb-1">
-                            <label class="text-[10px] font-bold uppercase tracking-wider text-sky-800 dark:text-sky-300">Table Buy-In</label>
-                            <span class="text-[9px] font-bold text-slate-400"><i class="fa-solid fa-lock text-[8px]"></i> Locked In-Game</span>
-                        </div>
-                        <input type="number" id="setupBuyIn" required min="50" max="1000000" step="50" value="1000"
-                            class="w-full px-3 py-2.5 rounded-xl bg-sky-50/60 dark:bg-slate-950 border border-sky-200 dark:border-sky-500/30 text-sky-950 dark:text-white font-mono text-sm sm:text-base font-extrabold focus:outline-none focus:border-sky-500">
-                    </div>
                 </div>
 
-                <!-- Quick Buy-In & Blinds Row -->
-                <div class="flex items-center justify-between gap-2 pt-1">
+                <!-- Blinds Row -->
+                <div class="p-3.5 rounded-2xl bg-sky-50/60 dark:bg-slate-950/70 border border-sky-200/80 dark:border-sky-500/20 flex items-center justify-between gap-2">
+                    <span class="text-xs font-extrabold uppercase tracking-wider text-sky-800 dark:text-sky-300">Small / Big Blinds</span>
                     <div class="flex items-center gap-1.5">
-                        <span class="text-xs font-bold text-slate-400 mr-1">Buy-In:</span>
-                        <button type="button" onclick="window.pokerApp.setSetupBuyIn(500)" class="px-2.5 py-1 rounded-lg bg-sky-50 dark:bg-slate-800 hover:bg-sky-100 dark:hover:bg-slate-700 text-xs font-mono font-bold text-sky-800 dark:text-sky-200">500</button>
-                        <button type="button" onclick="window.pokerApp.setSetupBuyIn(1000)" class="px-2.5 py-1 rounded-lg bg-sky-50 dark:bg-slate-800 hover:bg-sky-100 dark:hover:bg-slate-700 text-xs font-mono font-bold text-sky-800 dark:text-sky-200">1k</button>
-                        <button type="button" onclick="window.pokerApp.setSetupBuyIn(5000)" class="px-2.5 py-1 rounded-lg bg-sky-50 dark:bg-slate-800 hover:bg-sky-100 dark:hover:bg-slate-700 text-xs font-mono font-bold text-sky-800 dark:text-sky-200">5k</button>
-                    </div>
-                    <div class="flex items-center gap-1">
-                        <span class="text-xs font-bold text-slate-400 mr-1">Blinds:</span>
-                        <input type="number" id="setupSmallBlind" value="10" class="w-14 px-2 py-1 rounded-lg bg-sky-50 dark:bg-slate-950 border border-sky-200 dark:border-sky-500/30 text-center font-mono text-xs font-bold text-sky-900 dark:text-sky-200">
-                        <span class="text-slate-400 font-bold text-xs">/</span>
-                        <input type="number" id="setupBigBlind" value="20" class="w-14 px-2 py-1 rounded-lg bg-sky-50 dark:bg-slate-950 border border-sky-200 dark:border-sky-500/30 text-center font-mono text-xs font-bold text-sky-900 dark:text-sky-200">
+                        <input type="number" id="setupSmallBlind" value="25" min="5" max="1000" class="w-16 px-2 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-sky-200 dark:border-sky-500/30 text-center font-mono text-xs sm:text-sm font-extrabold text-sky-950 dark:text-white">
+                        <span class="text-slate-400 font-bold">/</span>
+                        <input type="number" id="setupBigBlind" value="50" min="10" max="2000" class="w-16 px-2 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-sky-200 dark:border-sky-500/30 text-center font-mono text-xs sm:text-sm font-extrabold text-sky-950 dark:text-white">
                     </div>
                 </div>
 
                 <!-- Create or Join Buttons -->
-                <div class="grid grid-cols-2 gap-3 pt-2">
+                <div class="grid grid-cols-2 gap-3 pt-1">
                     <button type="button" id="btnCreateHost" onclick="window.pokerApp.triggerCreateHost()"
-                        class="w-full py-3.5 px-3 rounded-2xl bg-gradient-to-r from-sky-500 to-sky-600 hover:from-sky-400 hover:to-sky-500 text-white font-extrabold text-sm shadow-md shadow-sky-500/20 transition flex items-center justify-center gap-1.5">
+                        class="w-full py-3.5 px-3 rounded-2xl bg-gradient-to-r from-sky-500 to-sky-600 hover:from-sky-400 hover:to-sky-500 text-white font-extrabold text-sm sm:text-base shadow-md shadow-sky-500/20 transition flex items-center justify-center gap-2">
                         <i class="fa-solid fa-crown text-xs"></i>
                         <span>Host Room</span>
                     </button>
 
                     <button type="button" id="btnJoinRoom" onclick="window.pokerApp.triggerJoinRoom()"
-                        class="w-full py-3.5 px-3 rounded-2xl bg-white dark:bg-slate-900 hover:bg-sky-50 dark:hover:bg-slate-800 text-sky-700 dark:text-sky-300 border-2 border-sky-500 font-extrabold text-sm transition flex items-center justify-center gap-1.5">
+                        class="w-full py-3.5 px-3 rounded-2xl bg-white dark:bg-slate-900 hover:bg-sky-50 dark:hover:bg-slate-800 text-sky-700 dark:text-sky-300 border-2 border-sky-500 font-extrabold text-sm sm:text-base transition flex items-center justify-center gap-2">
                         <i class="fa-solid fa-right-to-bracket text-xs"></i>
                         <span id="joinRoomBtnText">Join Room</span>
                     </button>
@@ -387,8 +341,8 @@
                     <!-- 5 large cards rendered here -->
                 </div>
 
-                <!-- Status / Turn Text -->
-                <div id="tableStatusBanner" class="text-xs sm:text-base font-extrabold text-sky-900 dark:text-sky-200 text-center px-4 py-1 rounded-full bg-white/80 dark:bg-slate-900/80 border border-sky-200/90 dark:border-sky-500/30 truncate max-w-full shadow-sm transition-colors">
+                <!-- Status / Turn / Champion Banner -->
+                <div id="tableStatusBanner" class="text-xs sm:text-base font-extrabold text-sky-900 dark:text-sky-200 text-center px-4 py-1.5 rounded-full bg-white/85 dark:bg-slate-900/85 border border-sky-200/90 dark:border-sky-500/30 truncate max-w-full shadow-sm transition-colors">
                     Waiting for players...
                 </div>
             </div>
@@ -410,7 +364,7 @@
                         <!-- Extra-Large Crisp Chip Count -->
                         <div class="flex items-baseline gap-2">
                             <svg class="w-5 h-5 sm:w-6 sm:h-6 text-sky-500 self-center"><use href="#chip-icon"/></svg>
-                            <span id="myStackBadge" class="font-mono font-black text-sky-950 dark:text-white text-2xl sm:text-4xl tracking-tight">1,000</span>
+                            <span id="myStackBadge" class="font-mono font-black text-sky-950 dark:text-white text-2xl sm:text-4xl tracking-tight">5,000</span>
                             <span id="myCurrentBetPill" class="hidden text-xs sm:text-sm font-mono font-bold text-sky-600 dark:text-sky-400 ml-1">
                                 (Bet: <span id="myCurrentBetVal">0</span>)
                             </span>
@@ -458,7 +412,7 @@
     </main>
 
     <!-- ========================================================= -->
-    <!-- MODAL 1: CLOCK COUNTER / ROTARY DIAL FOR RAISING          -->
+    <!-- MODAL: CLOCK COUNTER / ROTARY DIAL FOR RAISING            -->
     <!-- ========================================================= -->
     <div id="raiseClockModal" class="fixed inset-0 bg-sky-950/50 dark:bg-black/75 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
         <div class="bg-white dark:bg-slate-900 border border-sky-200 dark:border-sky-500/30 rounded-3xl max-w-sm w-full p-6 shadow-2xl flex flex-col items-center space-y-4">
@@ -481,7 +435,7 @@
 
                 <div class="absolute inset-14 rounded-full bg-white dark:bg-slate-950 border border-sky-200 dark:border-sky-500/30 flex flex-col items-center justify-center pointer-events-none shadow-inner">
                     <span class="text-[10px] uppercase tracking-widest text-sky-500 font-bold">RAISE TO</span>
-                    <span id="clockRaiseValueText" class="font-mono font-black text-2xl text-sky-950 dark:text-white mt-0.5">40</span>
+                    <span id="clockRaiseValueText" class="font-mono font-black text-2xl text-sky-950 dark:text-white mt-0.5">100</span>
                     <span id="clockPercentText" class="text-xs font-mono font-bold text-sky-600 dark:text-sky-400">Min</span>
                 </div>
             </div>
@@ -497,37 +451,8 @@
             </div>
 
             <button type="button" onclick="window.pokerApp.confirmClockRaise()" class="w-full py-3.5 rounded-2xl bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-base shadow-md">
-                <span id="confirmClockRaiseBtnText">Raise to 40</span>
+                <span id="confirmClockRaiseBtnText">Raise to 100</span>
             </button>
-        </div>
-    </div>
-
-    <!-- ========================================================= -->
-    <!-- MODAL 2: FREE CLOUD DATABASE SYNC                         -->
-    <!-- ========================================================= -->
-    <div id="cloudSyncModal" class="fixed inset-0 bg-sky-950/50 dark:bg-black/75 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
-        <div class="bg-white dark:bg-slate-900 border border-sky-200 dark:border-sky-500/30 rounded-3xl max-w-sm w-full p-5 shadow-2xl space-y-3.5">
-            <div class="flex items-center justify-between">
-                <h3 class="text-sm font-extrabold text-sky-950 dark:text-white flex items-center gap-2">
-                    <i class="fa-solid fa-database text-sky-500"></i>
-                    <span>Account &amp; Cloud Database</span>
-                </h3>
-                <button onclick="window.pokerApp.closeCloudSyncModal()" class="text-slate-400 hover:text-slate-700 dark:hover:text-white">
-                    <i class="fa-solid fa-xmark"></i>
-                </button>
-            </div>
-
-            <p class="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-                Your chips and login PIN are saved automatically in your browser's local database. To sync across devices for free, paste a Firebase Realtime DB URL below:
-            </p>
-
-            <input type="url" id="cloudDbUrlInput" placeholder="https://your-project-default-rtdb.firebaseio.com"
-                class="w-full px-3 py-2 rounded-xl bg-sky-50 dark:bg-slate-950 border border-sky-200 dark:border-sky-500/30 text-sky-950 dark:text-white font-mono text-xs focus:outline-none focus:border-sky-500">
-
-            <div class="flex justify-end gap-2 pt-1">
-                <button onclick="window.pokerApp.closeCloudSyncModal()" class="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-bold text-slate-600 dark:text-slate-300">Cancel</button>
-                <button onclick="window.pokerApp.saveCloudDbConfig()" class="px-4 py-2 rounded-xl bg-sky-600 text-white text-xs font-extrabold">Save</button>
-            </div>
         </div>
     </div>
 
@@ -535,10 +460,13 @@
     <div id="toastContainer" class="fixed top-16 right-4 z-50 flex flex-col gap-1.5 pointer-events-none max-w-xs"></div>
 
     <!-- ========================================================= -->
-    <!-- GAME ENGINE, ACCOUNT DB & DEVICE DARK MODE SYNC           -->
+    <!-- 5,000-CHIP FREEZEOUT TOURNAMENT ENGINE                    -->
     <!-- ========================================================= -->
     <script>
         (function () {
+            const STARTING_CHIPS = 5000;
+            const PEER_PREFIX = 'velvet-poker-room-';
+
             // 1. SYNTHESIZED SOUND EFFECTS
             class SoundFX {
                 constructor() {
@@ -592,55 +520,7 @@
             }
             const sfx = new SoundFX();
 
-            // 2. PLAYER ACCOUNT & PERSISTENT CHIP DATABASE
-            const VAULT_STORAGE_KEY = 'velvet_sky_accounts_v1';
-            const ACTIVE_USER_KEY = 'velvet_sky_active_user_v1';
-            const CLOUD_DB_URL_KEY = 'velvet_sky_cloud_db_url';
-
-            function simplePinHash(pin) {
-                const str = String(pin || '0000').trim();
-                let h = 2166136261;
-                for (let i = 0; i < str.length; i++) {
-                    h ^= str.charCodeAt(i);
-                    h = Math.imul(h, 16777619);
-                }
-                return (h >>> 0).toString(16);
-            }
-
-            function loadLocalAccounts() {
-                try {
-                    const raw = localStorage.getItem(VAULT_STORAGE_KEY);
-                    return raw ? JSON.parse(raw) : {};
-                } catch (e) { return {}; }
-            }
-
-            function saveLocalAccounts(accounts) {
-                try { localStorage.setItem(VAULT_STORAGE_KEY, JSON.stringify(accounts)); } catch (e) {}
-            }
-
-            async function syncAccountToCloud(accountObj) {
-                const dbUrl = (localStorage.getItem(CLOUD_DB_URL_KEY) || '').trim().replace(/\/+$/, '');
-                if (!dbUrl || !accountObj || !accountObj.usernameKey) return;
-                try {
-                    await fetch(`${dbUrl}/velvet_accounts/${encodeURIComponent(accountObj.usernameKey)}.json`, {
-                        method: 'PUT',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(accountObj)
-                    });
-                } catch (e) {}
-            }
-
-            async function fetchAccountFromCloud(usernameKey) {
-                const dbUrl = (localStorage.getItem(CLOUD_DB_URL_KEY) || '').trim().replace(/\/+$/, '');
-                if (!dbUrl || !usernameKey) return null;
-                try {
-                    const res = await fetch(`${dbUrl}/velvet_accounts/${encodeURIComponent(usernameKey)}.json`);
-                    if (!res.ok) return null;
-                    return await res.json();
-                } catch (e) { return null; }
-            }
-
-            // 3. CARD CONSTANTS & MEMOIZED PATTERN EVALUATOR
+            // 2. CARD CONSTANTS & MEMOIZED PATTERN EVALUATOR
             const SUIT_SYMBOLS = { s: '♠', h: '♥', d: '♦', c: '♣' };
             const SUIT_COLORS = {
                 s: 'text-slate-900',
@@ -784,31 +664,24 @@
                 return result;
             }
 
-            // 4. APPLICATION STATE & HIGH-SPEED P2P SYNC
-            const PEER_PREFIX = 'velvet-poker-room-';
-
-            let mySessionId = sessionStorage.getItem('velvet_poker_uid');
-            if (!mySessionId) {
-                mySessionId = 'plr-' + Math.random().toString(36).substring(2, 10);
-                sessionStorage.setItem('velvet_poker_uid', mySessionId);
+            // 3. PERSISTENT DEVICE ID (Prevents leaving & re-entering the same room to reset 0 chips)
+            let deviceUid = localStorage.getItem('velvet_device_uid');
+            if (!deviceUid) {
+                deviceUid = 'plr-' + Math.random().toString(36).substring(2, 10) + '-' + Date.now().toString(36).slice(-4);
+                try { localStorage.setItem('velvet_device_uid', deviceUid); } catch (e) {}
             }
 
             const appState = {
                 role: 'HOST',
-                myUid: mySessionId,
+                myUid: deviceUid,
                 myName: 'Maverick',
-                myAccountKey: '',
-                walletChips: 5000,
-                handsPlayed: 0,
-                handsWon: 0,
                 roomCode: 'POKER1',
-                buyIn: 1000,
-                smallBlind: 10,
-                bigBlind: 20,
+                smallBlind: 25,
+                bigBlind: 50,
                 isPeekingCards: false,
-                clockRaiseAmount: 40,
-                clockMinRaise: 40,
-                clockMaxRaise: 1000,
+                clockRaiseAmount: 100,
+                clockMinRaise: 100,
+                clockMaxRaise: STARTING_CHIPS,
                 peer: null,
                 hostConn: null,
                 clientConns: {},
@@ -839,7 +712,7 @@
                     el.style.opacity = '0';
                     el.style.transform = 'translateY(-4px)';
                     setTimeout(() => el.remove(), 250);
-                }, 2600);
+                }, 2800);
             }
 
             function updateP2PBadge(status, showReconnect = false) {
@@ -855,59 +728,12 @@
                 else dot.className = 'w-2.5 h-2.5 rounded-full bg-rose-500';
             }
 
-            function updateAccountUI() {
-                document.getElementById('headerAccountName').textContent = appState.myName || 'Guest';
-                document.getElementById('walletBalanceText').textContent = (appState.walletChips || 0).toLocaleString();
-                document.getElementById('careerStatsText').textContent = `(${appState.handsWon || 0}W / ${appState.handsPlayed || 0}H)`;
-
-                const hasCloud = Boolean((localStorage.getItem(CLOUD_DB_URL_KEY) || '').trim());
-                const dot = document.getElementById('cloudSyncDot');
-                const badge = document.getElementById('accountStatusBadge');
-                if (hasCloud) {
-                    dot.className = 'w-2 h-2 rounded-full bg-emerald-500';
-                    badge.textContent = 'Cloud DB Synced';
-                } else {
-                    dot.className = 'w-2 h-2 rounded-full bg-sky-500';
-                    badge.textContent = 'Local DB Active';
-                }
-            }
-
-            function persistMyAccountWallet() {
-                if (!appState.myAccountKey) return;
-                const accounts = loadLocalAccounts();
-                const existing = accounts[appState.myAccountKey] || {};
-                const updated = {
-                    ...existing,
-                    usernameKey: appState.myAccountKey,
-                    displayName: appState.myName,
-                    uid: appState.myUid,
-                    chips: Math.max(0, Math.floor(appState.walletChips)),
-                    handsPlayed: appState.handsPlayed || 0,
-                    handsWon: appState.handsWon || 0,
-                    updatedAt: Date.now()
-                };
-                accounts[appState.myAccountKey] = updated;
-                saveLocalAccounts(accounts);
-                syncAccountToCloud(updated);
-                updateAccountUI();
-            }
-
-            function syncSeatStackToWallet(newTableChips, oldTableChips, wonHand = false, handCompleted = false) {
-                const delta = (Number(newTableChips) || 0) - (Number(oldTableChips) || 0);
-                if (delta !== 0 || wonHand || handCompleted) {
-                    appState.walletChips = Math.max(0, appState.walletChips + delta);
-                    if (handCompleted) appState.handsPlayed = (appState.handsPlayed || 0) + 1;
-                    if (wonHand) appState.handsWon = (appState.handsWon || 0) + 1;
-                    persistMyAccountWallet();
-                }
-            }
-
-            function createPlayerObject(seatIndex, uid, name, chips, isBot = false, midHand = false) {
+            function createPlayerObject(seatIndex, uid, name, isBot = false, midHand = false) {
                 return {
                     seatIndex,
                     uid,
                     name,
-                    chips,
+                    chips: STARTING_CHIPS,
                     bet: 0,
                     totalHandBet: 0,
                     folded: midHand,
@@ -921,7 +747,7 @@
                 };
             }
 
-            // 5. WEBRTC P2P MULTIPLAYER
+            // 4. WEBRTC P2P MULTIPLAYER
             function cleanupPeer() {
                 if (appState.botTimer) { clearTimeout(appState.botTimer); appState.botTimer = null; }
                 if (appState.pingInterval) { clearInterval(appState.pingInterval); appState.pingInterval = null; }
@@ -938,7 +764,7 @@
                 if (b2) b2.disabled = disabled;
             }
 
-            function startHostTable(roomCode, playerName, buyIn, sb, bb) {
+            function startHostTable(roomCode, playerName, sb, bb) {
                 cleanupPeer();
                 appState.role = 'HOST';
                 updateP2PBadge('connecting');
@@ -951,6 +777,8 @@
                     bigBlind: bb,
                     stage: 'WAITING',
                     handNumber: 0,
+                    tournamentFinished: false,
+                    championName: '',
                     pot: 0,
                     currentBet: 0,
                     minRaise: bb,
@@ -961,9 +789,9 @@
                     communityCards: [],
                     deck: [],
                     seats: [
-                        createPlayerObject(0, appState.myUid, playerName, buyIn, false, false)
+                        createPlayerObject(0, appState.myUid, playerName, false, false)
                     ],
-                    statusText: `Tap +Bot or share code ${roomCode} to start`,
+                    statusText: `Room ${roomCode} • Everyone starts with 5,000 chips`,
                     winnerBannerText: '',
                     winningCardIds: [],
                     winnerSeats: []
@@ -1039,15 +867,21 @@
                 const room = appState.hostFullState;
 
                 if (msg.type === 'JOIN_REQUEST') {
-                    const { uid, name, buyIn } = msg;
+                    const { uid, name } = msg;
                     conn._playerUid = uid;
                     appState.clientConns[uid] = conn;
 
+                    // If this player was already in this room, restore their exact seat & chip count!
+                    // If they lost their 5,000 chips in this room, they remain at 0 chips until the room finishes with 1 winner!
                     let seat = room.seats.find(s => s.uid === uid);
                     if (seat) {
                         seat.name = name || seat.name;
                         seat.connected = true;
-                        room.statusText = `${seat.name} reconnected`;
+                        if (seat.chips <= 0 && !room.tournamentFinished) {
+                            room.statusText = `${seat.name} reconnected (Eliminated — Spectating until 1 winner)`;
+                        } else {
+                            room.statusText = `${seat.name} reconnected`;
+                        }
                     } else {
                         if (room.seats.length >= 10) {
                             conn.send({ type: 'ERROR', message: 'Room full (max 10).' });
@@ -1055,10 +889,9 @@
                         }
                         const midHand = room.stage !== 'WAITING' && room.stage !== 'SHOWDOWN';
                         const newIndex = room.seats.length;
-                        const cleanBuyIn = Math.max(50, Number(buyIn) || 1000);
-                        const newPlayer = createPlayerObject(newIndex, uid, name || `P${newIndex + 1}`, cleanBuyIn, false, midHand);
+                        const newPlayer = createPlayerObject(newIndex, uid, name || `P${newIndex + 1}`, false, midHand);
                         room.seats.push(newPlayer);
-                        room.statusText = `${newPlayer.name} joined • Tap Deal Hand`;
+                        room.statusText = `${newPlayer.name} joined with 5,000 chips!`;
                         sfx.chip();
                     }
                     broadcastStateFromHost(true);
@@ -1069,7 +902,11 @@
                     }
                 } else if (msg.type === 'DEAL_REQUEST') {
                     if (room.stage === 'WAITING' || room.stage === 'SHOWDOWN') {
-                        hostStartNewHand();
+                        if (room.tournamentFinished) {
+                            hostResetTournament();
+                        } else {
+                            hostStartNewHand();
+                        }
                     }
                 }
             }
@@ -1106,6 +943,8 @@
                     bigBlind: room.bigBlind,
                     stage: room.stage,
                     handNumber: room.handNumber,
+                    tournamentFinished: Boolean(room.tournamentFinished),
+                    championName: room.championName || '',
                     pot: room.pot,
                     currentBet: room.currentBet,
                     minRaise: room.minRaise,
@@ -1142,16 +981,7 @@
                     if (!appState.hostFullState) return;
 
                     const sharedBase = buildSharedBaseState();
-                    const prevHeroChips = appState.viewState?.seats?.find(s => s.uid === appState.myUid)?.chips;
-
                     appState.viewState = customizeStateForViewer(sharedBase, appState.myUid);
-
-                    const newHeroSeat = appState.viewState.seats.find(s => s.uid === appState.myUid);
-                    if (newHeroSeat && typeof prevHeroChips === 'number' && prevHeroChips !== newHeroSeat.chips) {
-                        const isWin = appState.viewState.stage === 'SHOWDOWN' && (appState.viewState.winnerSeats || []).includes(newHeroSeat.seatIndex);
-                        const isDone = appState.viewState.stage === 'SHOWDOWN';
-                        syncSeatStackToWallet(newHeroSeat.chips, prevHeroChips, isWin, isDone);
-                    }
 
                     scheduleRenderTableUI();
                     updateP2PBadge('online', false);
@@ -1178,7 +1008,7 @@
                 }
             }
 
-            function joinFriendTable(roomCode, playerName, buyIn) {
+            function joinFriendTable(roomCode, playerName) {
                 cleanupPeer();
                 appState.role = 'CLIENT';
                 updateP2PBadge('connecting');
@@ -1220,8 +1050,7 @@
                             conn.send({
                                 type: 'JOIN_REQUEST',
                                 uid: appState.myUid,
-                                name: playerName,
-                                buyIn
+                                name: playerName
                             });
                             enterArenaView();
                             sfx.chip();
@@ -1236,17 +1065,9 @@
                             if (msg.type === 'STATE_UPDATE' && msg.state) {
                                 const prevTurn = appState.viewState?.turnSeat;
                                 const prevStage = appState.viewState?.stage;
-                                const prevHeroChips = appState.viewState?.seats?.find(s => s.uid === appState.myUid)?.chips;
 
                                 appState.viewState = msg.state;
                                 updateP2PBadge('online', false);
-
-                                const newHeroSeat = msg.state.seats.find(s => s.uid === appState.myUid);
-                                if (newHeroSeat && typeof prevHeroChips === 'number' && prevHeroChips !== newHeroSeat.chips) {
-                                    const isWin = msg.state.stage === 'SHOWDOWN' && (msg.state.winnerSeats || []).includes(newHeroSeat.seatIndex);
-                                    const isDone = msg.state.stage === 'SHOWDOWN';
-                                    syncSeatStackToWallet(newHeroSeat.chips, prevHeroChips, isWin, isDone);
-                                }
 
                                 if (msg.state.stage === 'SHOWDOWN' && prevStage !== 'SHOWDOWN') sfx.win();
                                 else if (msg.state.turnSeat !== prevTurn) sfx.card();
@@ -1273,7 +1094,7 @@
                 }
             }
 
-            // 6. TEXAS HOLD'EM ENGINE
+            // 5. FREEZEOUT TEXAS HOLD'EM ENGINE (NO REBUYS — PLAY UNTIL 1 WINNER)
             function findNextSeatIdx(seats, fromIdx, predicate) {
                 const n = seats.length;
                 if (n === 0) return -1;
@@ -1284,20 +1105,71 @@
                 return -1;
             }
 
+            function checkIfTournamentFinished(room) {
+                const playersWithChips = room.seats.filter(s => s.chips > 0);
+                if (room.seats.length >= 2 && playersWithChips.length === 1) {
+                    const champ = playersWithChips[0];
+                    room.tournamentFinished = true;
+                    room.championName = champ.name;
+                    room.winnerBannerText = `🏆 ${champ.name} wins the Room Championship (${champ.chips.toLocaleString()} chips)!`;
+                    room.statusText = room.winnerBannerText;
+                } else {
+                    room.tournamentFinished = false;
+                    room.championName = '';
+                }
+            }
+
+            // Only callable AFTER the room finishes with 1 winner!
+            function hostResetTournament() {
+                const room = appState.hostFullState;
+                if (!room || !room.tournamentFinished) return;
+
+                room.seats.forEach((s, idx) => {
+                    s.seatIndex = idx;
+                    s.chips = STARTING_CHIPS;
+                    s.bet = 0;
+                    s.totalHandBet = 0;
+                    s.folded = false;
+                    s.allIn = false;
+                    s.acted = false;
+                    s.showCards = false;
+                    s.cards = [];
+                    s.lastAction = '5,000 Reset';
+                });
+                room.handNumber = 0;
+                room.tournamentFinished = false;
+                room.championName = '';
+                room.stage = 'WAITING';
+                room.pot = 0;
+                room.currentBet = 0;
+                room.communityCards = [];
+                room.statusText = 'New Match Ready! Everyone reset to 5,000 chips.';
+                sfx.chip();
+                hostStartNewHand();
+            }
+
             function hostStartNewHand() {
                 const room = appState.hostFullState;
                 if (!room) return;
 
+                // Strictly NO auto-rebuy for bots or humans during an active tournament!
                 room.seats.forEach((s, idx) => {
                     s.seatIndex = idx;
-                    if (s.isBot && s.chips <= 0) s.chips = room.bigBlind * 50;
                 });
 
                 const eligible = room.seats.filter(s => s.chips > 0);
                 if (eligible.length < 2) {
+                    if (room.seats.length >= 2 && eligible.length === 1) {
+                        checkIfTournamentFinished(room);
+                        broadcastStateFromHost(true);
+                        return;
+                    }
                     showToast('Add a Bot or invite a friend to deal!', 'warning');
                     return;
                 }
+
+                room.tournamentFinished = false;
+                room.championName = '';
 
                 const deck = createShuffledDeck();
                 room.handNumber = (room.handNumber || 0) + 1;
@@ -1321,7 +1193,7 @@
                         s.acted = true;
                         s.showCards = false;
                         s.cards = [];
-                        s.lastAction = 'Out';
+                        s.lastAction = 'Eliminated';
                     }
                 });
 
@@ -1448,6 +1320,7 @@
                     room.turnSeat = -1;
                     room.winnerSeats = [winner.seatIndex];
                     room.winningCardIds = [];
+                    checkIfTournamentFinished(room);
                     sfx.win();
                     broadcastStateFromHost(true);
                     return;
@@ -1572,7 +1445,7 @@
                         c.lastAction = `+${won.toLocaleString()}`;
                         summaries.push(`${c.name} wins ${won.toLocaleString()} (${ev.label})`);
                     } else {
-                        c.lastAction = ev.label;
+                        c.lastAction = c.chips <= 0 ? 'Eliminated' : ev.label;
                     }
                 });
 
@@ -1581,6 +1454,7 @@
                 room.winningCardIds = winningCardIds;
                 room.winnerBannerText = summaries.join(' • ') || 'Showdown complete';
                 room.statusText = room.winnerBannerText;
+                checkIfTournamentFinished(room);
                 sfx.win();
             }
 
@@ -1619,11 +1493,10 @@
                 }, 600);
             }
 
-            // 7. NO-CLIP OPPONENT GRID & LARGE CARD RENDERING
+            // 6. UI RENDERING
             function enterArenaView() {
                 document.getElementById('setupScreen').classList.add('hidden');
                 document.getElementById('headerBrandGroup').classList.add('hidden');
-                document.getElementById('headerAccountBtn').classList.add('hidden');
 
                 const roomPill = document.getElementById('headerRoomPill');
                 roomPill.classList.remove('hidden');
@@ -1775,7 +1648,10 @@
                     `;
                 }
 
-                if (mySeat.folded) {
+                if (mySeat.chips <= 0 && (room.stage === 'WAITING' || room.stage === 'SHOWDOWN')) {
+                    patternBadge.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-50 dark:bg-rose-950/60 text-rose-500 dark:text-rose-300 font-bold text-xs sm:text-sm';
+                    patternText.textContent = room.tournamentFinished ? 'Tournament Over' : 'Eliminated • Waiting for 1 Winner';
+                } else if (mySeat.folded) {
                     patternBadge.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-50 dark:bg-rose-950/60 text-rose-500 dark:text-rose-300 font-bold text-xs sm:text-sm';
                     patternText.textContent = 'Folded';
                 } else if (shouldRevealMyCards && myEvaluation.category >= 0) {
@@ -1786,7 +1662,7 @@
                     patternText.textContent = 'Tap cards to peek';
                 } else {
                     patternBadge.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-sky-50 dark:bg-slate-800 text-slate-400 font-semibold text-xs sm:text-sm';
-                    patternText.textContent = 'Ready';
+                    patternText.textContent = 'Ready (5,000 Chips)';
                 }
             }
 
@@ -1811,19 +1687,23 @@
 
                 document.getElementById('tableStatusBanner').textContent = room.statusText || '';
 
-                // Host +Bot Button
+                // Host +Bot Button (Only before tournament starts or after 1 winner is crowned)
                 const addBotBtn = document.getElementById('addBotBtn');
-                const showBotBtn = isHost && isBetweenHands;
+                const showBotBtn = isHost && isBetweenHands && (room.handNumber === 0 || room.tournamentFinished);
                 addBotBtn.classList.toggle('hidden', !showBotBtn);
                 addBotBtn.classList.toggle('inline-flex', showBotBtn);
 
-                // Deal Hand Button
+                // Deal Hand / New Match Button
                 const dealBtn = document.getElementById('dealHandBtn');
                 const eligibleCount = room.seats.filter(s => s.chips > 0).length;
-                if (isBetweenHands && eligibleCount >= 2) {
+                if (isBetweenHands && (eligibleCount >= 2 || room.tournamentFinished)) {
                     dealBtn.classList.remove('hidden');
                     dealBtn.classList.add('inline-flex');
-                    document.getElementById('dealHandBtnText').textContent = room.handNumber > 0 ? 'Next Hand' : 'Deal Hand';
+                    if (room.tournamentFinished) {
+                        document.getElementById('dealHandBtnText').textContent = 'New Match (5K Reset)';
+                    } else {
+                        document.getElementById('dealHandBtnText').textContent = room.handNumber > 0 ? 'Next Hand' : 'Deal Hand';
+                    }
                 } else {
                     dealBtn.classList.add('hidden');
                     dealBtn.classList.remove('inline-flex');
@@ -1843,14 +1723,14 @@
                     myEvaluation.patternCardIds.forEach(id => activePatternIds.add(id));
                 }
 
-                // 1. SMART AUTO-FIT OPPONENTS GRID (NO HORIZONTAL CLIPPING)
+                // 1. SMART AUTO-FIT OPPONENTS GRID
                 const oppRow = document.getElementById('opponentsUnifiedRow');
                 const opponents = room.seats.filter(s => s.uid !== appState.myUid);
 
                 if (opponents.length === 0) {
                     oppRow.innerHTML = `
                         <div class="w-full py-3.5 px-5 rounded-2xl bg-white/80 dark:bg-slate-900/80 border-2 border-dashed border-sky-300 dark:border-sky-500/30 flex items-center justify-between text-xs sm:text-sm text-sky-900 dark:text-sky-200">
-                            <span>Room <b class="font-mono text-sky-600 dark:text-sky-400">${room.roomCode}</b> • Waiting for players</span>
+                            <span>Room <b class="font-mono text-sky-600 dark:text-sky-400">${room.roomCode}</b> • Waiting for players (5,000 chips each)</span>
                             ${isHost ? `<button onclick="window.pokerApp.addBot()" class="px-3.5 py-1.5 rounded-full bg-sky-600 text-white font-bold text-xs shadow-sm">+ Add Bot</button>` : ''}
                         </div>
                     `;
@@ -2010,7 +1890,7 @@
                 }
             }
 
-            // 8. CLOCK COUNTER ROTARY DIAL
+            // 7. CLOCK COUNTER ROTARY DIAL
             function initClockCounterEvents() {
                 const ticksGroup = document.getElementById('clockTicksGroup');
                 if (ticksGroup) {
@@ -2049,7 +1929,7 @@
                     const ratio = Math.max(0, Math.min(1, deg / 360));
                     const minR = appState.clockMinRaise;
                     const maxR = appState.clockMaxRaise;
-                    const step = Math.max(1, Math.floor((appState.viewState?.smallBlind || 10) / 2));
+                    const step = Math.max(1, Math.floor((appState.viewState?.smallBlind || 25) / 5));
 
                     let rawVal = minR + ratio * (maxR - minR);
                     let steppedVal = Math.round(rawVal / step) * step;
@@ -2122,7 +2002,7 @@
                 else pctEl.textContent = `${Math.round(ratio * 100)}%`;
             }
 
-            // 9. TAP-TO-PEEK & HOLD-TO-PEEK EVENTS
+            // 8. TAP-TO-PEEK & HOLD-TO-PEEK EVENTS
             function initHoldToPeekEvents() {
                 const touchZone = document.getElementById('myHoleCardsTouchZone');
                 if (!touchZone) return;
@@ -2167,7 +2047,7 @@
                 showToast(toastMessage, 'success');
             }
 
-            // 10. PUBLIC API
+            // 9. PUBLIC API
             window.pokerApp = {
                 refreshThemeIcon() {
                     const isDark = document.documentElement.classList.contains('dark');
@@ -2185,117 +2065,9 @@
                     this.refreshThemeIcon();
                 },
 
-                async loginOrCreateAccount() {
-                    sfx.init();
-                    const rawName = (document.getElementById('setupPlayerName').value || '').trim();
-                    const rawPin = (document.getElementById('setupPlayerPin').value || '1234').trim();
-                    if (!rawName) {
-                        showToast('Enter a Username first.', 'warning');
-                        return;
-                    }
-                    const usernameKey = rawName.toLowerCase().replace(/[^a-z0-9_]/g, '');
-                    const pinHash = simplePinHash(rawPin);
-
-                    const accounts = loadLocalAccounts();
-                    let acc = accounts[usernameKey];
-
-                    const cloudAcc = await fetchAccountFromCloud(usernameKey);
-                    if (cloudAcc && (!acc || (cloudAcc.updatedAt || 0) >= (acc.updatedAt || 0))) {
-                        acc = cloudAcc;
-                        accounts[usernameKey] = acc;
-                        saveLocalAccounts(accounts);
-                    }
-
-                    if (acc) {
-                        if (acc.pinHash && acc.pinHash !== pinHash) {
-                            showToast('Incorrect PIN!', 'error');
-                            return;
-                        }
-                        appState.myName = acc.displayName || rawName;
-                        appState.myAccountKey = usernameKey;
-                        appState.myUid = acc.uid || ('plr-' + usernameKey);
-                        appState.walletChips = typeof acc.chips === 'number' ? acc.chips : 5000;
-                        appState.handsPlayed = acc.handsPlayed || 0;
-                        appState.handsWon = acc.handsWon || 0;
-                        sessionStorage.setItem('velvet_poker_uid', appState.myUid);
-                        localStorage.setItem(ACTIVE_USER_KEY, usernameKey);
-                        showToast(`Welcome back, <b>${appState.myName}</b>!`, 'success');
-                    } else {
-                        const newUid = 'plr-' + usernameKey + '-' + Math.random().toString(36).substring(2, 6);
-                        const newAcc = {
-                            usernameKey,
-                            displayName: rawName,
-                            pinHash,
-                            uid: newUid,
-                            chips: 5000,
-                            handsPlayed: 0,
-                            handsWon: 0,
-                            updatedAt: Date.now()
-                        };
-                        accounts[usernameKey] = newAcc;
-                        saveLocalAccounts(accounts);
-                        syncAccountToCloud(newAcc);
-
-                        appState.myName = rawName;
-                        appState.myAccountKey = usernameKey;
-                        appState.myUid = newUid;
-                        appState.walletChips = 5000;
-                        appState.handsPlayed = 0;
-                        appState.handsWon = 0;
-                        sessionStorage.setItem('velvet_poker_uid', appState.myUid);
-                        localStorage.setItem(ACTIVE_USER_KEY, usernameKey);
-                        showToast(`Created account <b>${rawName}</b> (5,000 chips)!`, 'success');
-                    }
-
-                    const buyInInput = document.getElementById('setupBuyIn');
-                    if (appState.walletChips > 0) {
-                        buyInInput.value = Math.min(Number(buyInInput.value) || 1000, appState.walletChips);
-                    }
-                    sfx.chip();
-                    updateAccountUI();
-                },
-
-                claimLobbyFreeChips() {
-                    if (!document.getElementById('tableArena').classList.contains('hidden')) {
-                        showToast('Cannot add chips during a game!', 'error');
-                        return;
-                    }
-                    if (appState.walletChips >= 1000) {
-                        showToast('Free refill is available when under 1,000 chips.', 'info');
-                        return;
-                    }
-                    appState.walletChips += 2000;
-                    persistMyAccountWallet();
-                    document.getElementById('setupBuyIn').value = Math.min(1000, appState.walletChips);
-                    sfx.chip();
-                    showToast('+2,000 free chips added to wallet!', 'success');
-                },
-
-                openCloudSyncModal() {
-                    document.getElementById('cloudDbUrlInput').value = localStorage.getItem(CLOUD_DB_URL_KEY) || '';
-                    const m = document.getElementById('cloudSyncModal');
-                    m.classList.remove('hidden');
-                    m.classList.add('flex');
-                },
-
-                closeCloudSyncModal() {
-                    const m = document.getElementById('cloudSyncModal');
-                    m.classList.add('hidden');
-                    m.classList.remove('flex');
-                },
-
-                saveCloudDbConfig() {
-                    const url = (document.getElementById('cloudDbUrlInput').value || '').trim();
-                    if (url) {
-                        localStorage.setItem(CLOUD_DB_URL_KEY, url);
-                        persistMyAccountWallet();
-                        showToast('Cloud DB synced!', 'success');
-                    } else {
-                        localStorage.removeItem(CLOUD_DB_URL_KEY);
-                        showToast('Using Local Browser DB.', 'info');
-                    }
-                    updateAccountUI();
-                    this.closeCloudSyncModal();
+                randomizeName() {
+                    const names = ['Maverick', 'AceHigh', 'SkyShark', 'RiverKing', 'Nova', 'Vega', 'Falcon', 'Blaze'];
+                    document.getElementById('setupPlayerName').value = names[Math.floor(Math.random() * names.length)];
                 },
 
                 generateRoomCode() {
@@ -2305,80 +2077,43 @@
                     document.getElementById('setupRoomCode').value = code;
                 },
 
-                setSetupBuyIn(amount) {
-                    const maxAllowed = appState.walletChips > 0 ? Math.min(amount, appState.walletChips) : amount;
-                    document.getElementById('setupBuyIn').value = Math.max(50, maxAllowed);
-                    sfx.chip();
-                },
-
                 readLobbyInputs() {
                     sfx.init();
                     const name = document.getElementById('setupPlayerName').value.trim() || 'Maverick';
                     const code = document.getElementById('setupRoomCode').value.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
-                    let buyIn = Math.max(50, Math.floor(Number(document.getElementById('setupBuyIn').value) || 1000));
-                    const sb = Math.max(1, Math.floor(Number(document.getElementById('setupSmallBlind').value) || 10));
-                    const bb = Math.max(sb * 2, Math.floor(Number(document.getElementById('setupBigBlind').value) || 20));
+                    const sb = Math.max(1, Math.floor(Number(document.getElementById('setupSmallBlind').value) || 25));
+                    const bb = Math.max(sb * 2, Math.floor(Number(document.getElementById('setupBigBlind').value) || 50));
 
                     if (code.length < 4 || code.length > 6) {
                         showToast('Enter a 4–6 character Room Code.', 'warning');
                         return null;
                     }
 
-                    if (!appState.myAccountKey || appState.myName.toLowerCase() !== name.toLowerCase()) {
-                        const usernameKey = name.toLowerCase().replace(/[^a-z0-9_]/g, '') || 'player';
-                        const accounts = loadLocalAccounts();
-                        if (!accounts[usernameKey]) {
-                            accounts[usernameKey] = {
-                                usernameKey,
-                                displayName: name,
-                                pinHash: simplePinHash(document.getElementById('setupPlayerPin').value || '1234'),
-                                uid: appState.myUid,
-                                chips: 5000,
-                                handsPlayed: 0,
-                                handsWon: 0,
-                                updatedAt: Date.now()
-                            };
-                            saveLocalAccounts(accounts);
-                        }
-                        appState.myAccountKey = usernameKey;
-                        appState.walletChips = accounts[usernameKey].chips;
-                    }
-
-                    if (buyIn > appState.walletChips) {
-                        if (appState.walletChips < 50) {
-                            showToast('Wallet under 50 chips! Tap "+ Free Refill" first.', 'warning');
-                            return null;
-                        }
-                        buyIn = appState.walletChips;
-                        document.getElementById('setupBuyIn').value = buyIn;
-                    }
-
                     appState.myName = name;
                     appState.roomCode = code;
-                    appState.buyIn = buyIn;
                     appState.smallBlind = sb;
                     appState.bigBlind = bb;
-                    updateAccountUI();
-                    return { name, code, buyIn, sb, bb };
+                    try { localStorage.setItem('velvet_last_name', name); } catch (e) {}
+                    return { name, code, sb, bb };
                 },
 
                 triggerCreateHost() {
                     const vals = this.readLobbyInputs();
                     if (!vals) return;
-                    startHostTable(vals.code, vals.name, vals.buyIn, vals.sb, vals.bb);
+                    startHostTable(vals.code, vals.name, vals.sb, vals.bb);
                 },
 
                 triggerJoinRoom() {
                     const vals = this.readLobbyInputs();
                     if (!vals) return;
-                    joinFriendTable(vals.code, vals.name, vals.buyIn);
+                    joinFriendTable(vals.code, vals.name);
                 },
 
                 reconnectToRoom() {
                     if (appState.role === 'HOST') {
-                        startHostTable(appState.roomCode, appState.myName, appState.buyIn, appState.smallBlind, appState.bigBlind);
+                        startHostTable(appState.roomCode, appState.myName, appState.smallBlind, appState.bigBlind);
                     } else {
-                        joinFriendTable(appState.roomCode, appState.myName, appState.buyIn);
+                        joinFriendTable(appState.roomCode, appState.myName);
                     }
                 },
 
@@ -2400,28 +2135,34 @@
                     if (!appState.hostFullState) return;
                     const room = appState.hostFullState;
                     if (room.seats.length >= 10) return;
+                    if (room.handNumber > 0 && !room.tournamentFinished) {
+                        showToast('Cannot add new bots until the room finishes with 1 winner!', 'warning');
+                        return;
+                    }
                     const botNames = ['SkyBot', 'Aero', 'Cirrus', 'Nimbus', 'Zephyr', 'Nova', 'Apex'];
                     const used = room.seats.map(s => s.name);
                     const pick = botNames.find(n => !used.includes(n)) || `Bot-${room.seats.length + 1}`;
-                    const midHand = room.stage !== 'WAITING' && room.stage !== 'SHOWDOWN';
 
                     const newBot = createPlayerObject(
                         room.seats.length,
                         'bot-' + Math.random().toString(36).substring(2, 7),
                         pick,
-                        appState.buyIn || 1000,
                         true,
-                        midHand
+                        false
                     );
                     room.seats.push(newBot);
-                    room.statusText = `${pick} joined • Tap Deal Hand`;
+                    room.statusText = `${pick} joined with 5,000 chips • Tap Deal Hand`;
                     sfx.chip();
                     broadcastStateFromHost(true);
                 },
 
                 requestDealHand() {
                     if (appState.hostFullState) {
-                        hostStartNewHand();
+                        if (appState.hostFullState.tournamentFinished) {
+                            hostResetTournament();
+                        } else {
+                            hostStartNewHand();
+                        }
                     } else if (appState.hostConn && appState.hostConn.open) {
                         appState.hostConn.send({ type: 'DEAL_REQUEST', uid: appState.myUid });
                     }
@@ -2481,7 +2222,7 @@
                 },
 
                 stepClockRaise(dir) {
-                    const step = Math.max(5, appState.viewState?.smallBlind || 10);
+                    const step = Math.max(5, appState.viewState?.smallBlind || 25);
                     appState.clockRaiseAmount = Math.max(
                         appState.clockMinRaise,
                         Math.min(appState.clockMaxRaise, appState.clockRaiseAmount + dir * step)
@@ -2514,7 +2255,6 @@
                 },
 
                 leaveTable() {
-                    persistMyAccountWallet();
                     cleanupPeer();
                     appState.hostFullState = null;
                     appState.viewState = null;
@@ -2527,9 +2267,7 @@
                     document.getElementById('headerRoomPill').classList.remove('inline-flex');
 
                     document.getElementById('headerBrandGroup').classList.remove('hidden');
-                    document.getElementById('headerAccountBtn').classList.remove('hidden');
                     document.getElementById('setupScreen').classList.remove('hidden');
-                    updateAccountUI();
                 }
             };
 
@@ -2538,21 +2276,12 @@
                 initHoldToPeekEvents();
                 initClockCounterEvents();
 
-                const savedUserKey = localStorage.getItem(ACTIVE_USER_KEY);
-                const accounts = loadLocalAccounts();
-                if (savedUserKey && accounts[savedUserKey]) {
-                    const acc = accounts[savedUserKey];
-                    appState.myName = acc.displayName || 'Maverick';
-                    appState.myAccountKey = savedUserKey;
-                    appState.myUid = acc.uid || appState.myUid;
-                    appState.walletChips = typeof acc.chips === 'number' ? acc.chips : 5000;
-                    appState.handsPlayed = acc.handsPlayed || 0;
-                    appState.handsWon = acc.handsWon || 0;
-                    document.getElementById('setupPlayerName').value = appState.myName;
+                const savedName = localStorage.getItem('velvet_last_name');
+                if (savedName) {
+                    document.getElementById('setupPlayerName').value = savedName;
                 } else {
-                    document.getElementById('setupPlayerName').value = 'Maverick';
+                    window.pokerApp.randomizeName();
                 }
-                updateAccountUI();
 
                 const params = new URLSearchParams(window.location.search);
                 const urlRoom = (params.get('room') || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
